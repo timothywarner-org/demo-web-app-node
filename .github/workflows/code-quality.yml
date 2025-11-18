@@ -1,0 +1,284 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight
+
+jobs:
+  # Linting and formatting
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: ESLint Report
+        run: |
+          npm run lint -- --format json --output-file eslint-report.json || true
+
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: eslint-report
+          path: eslint-report.json
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --json > npm-audit.json || true
+          npm audit --audit-level=moderate
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+
+      - name: Check for known vulnerabilities with Snyk
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # Dependency updates check
+  dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Check for outdated packages
+        run: |
+          npm outdated --json > outdated.json || true
+          echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          npm outdated || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload outdated report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: outdated-dependencies
+          path: outdated.json
+
+      - name: Check dependency licenses
+        run: |
+          npx license-checker --json --out licenses.json || true
+          echo "## 📄 License Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          npx license-checker --summary || true
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: license-report
+          path: licenses.json
+
+  # Code complexity analysis
+  complexity:
+    name: Code Complexity
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install analysis tools
+        run: |
+          npm install -g complexity-report
+          npm install -g jsinspect
+
+      - name: Analyze code complexity
+        run: |
+          cr src/ --format json > complexity-report.json || true
+          echo "## 🔍 Code Complexity Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Complexity report generated for review" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for duplicate code
+        run: |
+          jsinspect src/ > duplicate-code.txt || true
+
+      - name: Upload complexity reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: complexity-reports
+          path: |
+            complexity-report.json
+            duplicate-code.txt
+
+  # Test coverage analysis
+  coverage:
+    name: Coverage Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:ci
+
+      - name: Coverage summary
+        run: |
+          echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat coverage/coverage-summary.json || echo "No coverage summary available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: coverage/
+
+      - name: Coverage badge
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Documentation check
+  docs:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check README exists
+        run: |
+          if [ ! -f README.md ]; then
+            echo "❌ README.md not found"
+            exit 1
+          fi
+          echo "✅ README.md exists"
+
+      - name: Check documentation completeness
+        run: |
+          echo "## 📚 Documentation Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for key sections in README
+          if grep -q "## Installation" README.md; then
+            echo "✅ Installation section found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Installation section missing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if grep -q "## API" README.md; then
+            echo "✅ API documentation found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ API documentation missing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if grep -q "## Testing" README.md; then
+            echo "✅ Testing documentation found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Testing documentation missing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for JSDoc comments
+        run: |
+          JSDOC_COUNT=$(grep -r "@param\|@returns\|@description" src/ | wc -l)
+          echo "Found $JSDOC_COUNT JSDoc comments in source code"
+          echo "JSDoc comments: $JSDOC_COUNT" >> $GITHUB_STEP_SUMMARY
+
+  # Code quality summary
+  summary:
+    name: Quality Summary
+    runs-on: ubuntu-latest
+    needs: [lint, security, dependencies, complexity, coverage, docs]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🎯 Code Quality Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ${{ needs.dependencies.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complexity | ${{ needs.complexity.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | ${{ needs.docs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.lint.result }}" == "success" ] && \
+             [ "${{ needs.security.result }}" == "success" ] && \
+             [ "${{ needs.coverage.result }}" == "success" ]; then
+            echo "### ✅ Overall Status: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Overall Status: NEEDS ATTENTION" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,330 @@
+version: 2.1
+
+# Define reusable executors
+executors:
+  node-executor:
+    parameters:
+      node-version:
+        type: string
+        default: "18"
+    docker:
+      - image: cimg/node:<< parameters.node-version >>
+    working_directory: ~/repo
+
+# Define reusable commands
+commands:
+  restore-dependencies:
+    description: "Restore npm dependencies from cache"
+    steps:
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package-lock.json" }}
+            - v1-dependencies-
+
+  install-dependencies:
+    description: "Install npm dependencies"
+    steps:
+      - run:
+          name: Install Dependencies
+          command: npm ci
+
+  save-dependencies:
+    description: "Save npm dependencies to cache"
+    steps:
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package-lock.json" }}
+
+  run-tests:
+    description: "Run tests with coverage"
+    steps:
+      - run:
+          name: Run Tests
+          command: npm run test:ci
+          environment:
+            NODE_ENV: test
+
+  store-test-results:
+    description: "Store test results and artifacts"
+    steps:
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+      - store_artifacts:
+          path: coverage
+          destination: coverage
+
+# Define jobs
+jobs:
+  # Checkout and setup job
+  setup:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - checkout
+      - restore-dependencies
+      - install-dependencies
+      - save-dependencies
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - .
+
+  # Lint job
+  lint:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run ESLint
+          command: npm run lint
+
+  # Test job for Node 18
+  test-node-18:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run-tests
+      - store-test-results
+      - run:
+          name: Check Coverage Thresholds
+          command: |
+            echo "Coverage thresholds are enforced by Jest configuration"
+            echo "Minimum coverage: 70% for branches, functions, lines, statements"
+
+  # Test job for Node 20
+  test-node-20:
+    executor:
+      name: node-executor
+      node-version: "20"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run-tests
+      - store-test-results
+
+  # Test job for Node 21
+  test-node-21:
+    executor:
+      name: node-executor
+      node-version: "21"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run-tests
+      - store-test-results
+
+  # Security audit
+  security-audit:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run npm audit
+          command: |
+            npm audit --audit-level=moderate || true
+            echo "Security audit completed. Review any findings above."
+
+  # Build verification
+  build-verification:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Verify Application Starts
+          command: |
+            timeout 10s npm start > /tmp/server.log 2>&1 || true
+            if grep -q "Globomantics Robotics API is running" /tmp/server.log; then
+              echo "✅ Server started successfully"
+              exit 0
+            else
+              echo "❌ Server failed to start"
+              cat /tmp/server.log
+              exit 1
+            fi
+      - store_artifacts:
+          path: /tmp/server.log
+          destination: server-startup.log
+
+  # Generate and upload coverage report
+  coverage-report:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run-tests
+      - run:
+          name: Display Coverage Summary
+          command: |
+            echo "================================"
+            echo "    Coverage Summary"
+            echo "================================"
+            if [ -f coverage/coverage-summary.json ]; then
+              cat coverage/coverage-summary.json
+            else
+              echo "No coverage summary found"
+            fi
+      - store_artifacts:
+          path: coverage
+          destination: coverage-report
+      - store_artifacts:
+          path: coverage/lcov-report
+          destination: html-coverage-report
+
+  # Integration tests
+  integration-tests:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Integration Tests
+          command: npm test -- tests/integration/
+      - store_test_results:
+          path: test-results
+
+  # Deploy (placeholder for future deployment)
+  deploy-staging:
+    executor:
+      name: node-executor
+      node-version: "18"
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Deploy to Staging
+          command: |
+            echo "Deployment to staging environment would happen here"
+            echo "Example: Deploy to Heroku, AWS, Azure, etc."
+            echo "Current branch: $CIRCLE_BRANCH"
+            echo "Commit: $CIRCLE_SHA1"
+
+# Define workflows
+workflows:
+  version: 2
+
+  # Main CI/CD workflow
+  build-test-deploy:
+    jobs:
+      # Setup phase
+      - setup
+
+      # Parallel linting and security checks
+      - lint:
+          requires:
+            - setup
+
+      - security-audit:
+          requires:
+            - setup
+
+      # Parallel testing on multiple Node versions
+      - test-node-18:
+          requires:
+            - setup
+
+      - test-node-20:
+          requires:
+            - setup
+
+      - test-node-21:
+          requires:
+            - setup
+
+      # Integration tests
+      - integration-tests:
+          requires:
+            - test-node-18
+
+      # Build verification
+      - build-verification:
+          requires:
+            - lint
+            - test-node-18
+
+      # Coverage report
+      - coverage-report:
+          requires:
+            - test-node-18
+            - test-node-20
+            - test-node-21
+
+      # Deploy to staging (only on main branch)
+      - deploy-staging:
+          requires:
+            - lint
+            - security-audit
+            - test-node-18
+            - test-node-20
+            - test-node-21
+            - integration-tests
+            - build-verification
+          filters:
+            branches:
+              only:
+                - main
+                - master
+
+  # Nightly comprehensive test workflow
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"  # Run at midnight every day
+          filters:
+            branches:
+              only:
+                - main
+                - master
+    jobs:
+      - setup
+      - test-node-18:
+          requires:
+            - setup
+      - test-node-20:
+          requires:
+            - setup
+      - test-node-21:
+          requires:
+            - setup
+      - security-audit:
+          requires:
+            - setup
+      - coverage-report:
+          requires:
+            - test-node-18
+
+  # Weekly security audit
+  weekly-security:
+    triggers:
+      - schedule:
+          cron: "0 0 * * 0"  # Run at midnight every Sunday
+          filters:
+            branches:
+              only:
+                - main
+                - master
+    jobs:
+      - setup
+      - security-audit:
+          requires:
+            - setup

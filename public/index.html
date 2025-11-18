@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Globomantics Robotics - Fleet Management Dashboard</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <span class="logo-icon">🤖</span>
+          <div>
+            <h1>Globomantics Robotics</h1>
+            <p class="tagline">Fleet Management Dashboard</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="refreshBtn" class="btn btn-secondary" title="Refresh">
+            <span class="icon">🔄</span> Refresh
+          </button>
+          <button id="addRobotBtn" class="btn btn-primary">
+            <span class="icon">➕</span> Add Robot
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="container">
+
+      <!-- Statistics Cards -->
+      <section class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon">🤖</div>
+          <div class="stat-content">
+            <div class="stat-label">Total Robots</div>
+            <div class="stat-value" id="statTotal">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-content">
+            <div class="stat-label">Active</div>
+            <div class="stat-value" id="statActive">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔋</div>
+          <div class="stat-content">
+            <div class="stat-label">Avg. Battery</div>
+            <div class="stat-value" id="statBattery">0%</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔧</div>
+          <div class="stat-content">
+            <div class="stat-label">Maintenance Needed</div>
+            <div class="stat-value" id="statMaintenance">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filters -->
+      <section class="filters">
+        <div class="filter-group">
+          <input
+            type="text"
+            id="searchInput"
+            class="input"
+            placeholder="🔍 Search robots by name..."
+          >
+        </div>
+        <div class="filter-group">
+          <select id="statusFilter" class="select">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="charging">Charging</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="offline">Offline</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <select id="typeFilter" class="select">
+            <option value="">All Types</option>
+            <option value="industrial">Industrial</option>
+            <option value="logistics">Logistics</option>
+            <option value="inspection">Inspection</option>
+            <option value="research">Research</option>
+            <option value="medical">Medical</option>
+            <option value="agricultural">Agricultural</option>
+          </select>
+        </div>
+        <button id="resetFiltersBtn" class="btn btn-secondary">Reset Filters</button>
+      </section>
+
+      <!-- Robots Grid -->
+      <section class="robots-section">
+        <div class="section-header">
+          <h2>Robot Fleet</h2>
+          <div class="view-toggle">
+            <button id="gridViewBtn" class="view-btn active" title="Grid View">
+              <span class="icon">▦</span>
+            </button>
+            <button id="listViewBtn" class="view-btn" title="List View">
+              <span class="icon">☰</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading robots...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-icon">🤖</div>
+          <h3>No Robots Found</h3>
+          <p>Get started by adding your first robot to the fleet.</p>
+          <button class="btn btn-primary" onclick="document.getElementById('addRobotBtn').click()">
+            <span class="icon">➕</span> Add Your First Robot
+          </button>
+        </div>
+
+        <!-- Robots Grid -->
+        <div id="robotsGrid" class="robots-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal: Add/Edit Robot -->
+  <div id="robotModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add New Robot</h2>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <form id="robotForm" class="robot-form">
+        <input type="hidden" id="robotId">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="robotName">Robot Name *</label>
+            <input
+              type="text"
+              id="robotName"
+              class="input"
+              required
+              minlength="3"
+              maxlength="50"
+              placeholder="e.g., Atlas-06"
+            >
+          </div>
+          <div class="form-group">
+            <label for="robotType">Type *</label>
+            <select id="robotType" class="select" required>
+              <option value="">Select type...</option>
+              <option value="industrial">Industrial</option>
+              <option value="logistics">Logistics</option>
+              <option value="inspection">Inspection</option>
+              <option value="research">Research</option>
+              <option value="medical">Medical</option>
+              <option value="agricultural">Agricultural</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="robotStatus">Status</label>
+            <select id="robotStatus" class="select">
+              <option value="offline">Offline</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="charging">Charging</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="robotBattery">Battery Level (%)</label>
+            <input
+              type="number"
+              id="robotBattery"
+              class="input"
+              min="0"
+              max="100"
+              value="100"
+            >
+            <div class="battery-indicator">
+              <div class="battery-fill" id="batteryFill" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="robotTask">Assigned Task</label>
+          <input
+            type="text"
+            id="robotTask"
+            class="input"
+            placeholder="e.g., Assembly Line A"
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Location (X, Y, Z)</label>
+          <div class="form-row">
+            <input
+              type="number"
+              id="locationX"
+              class="input"
+              placeholder="X"
+              value="0"
+            >
+            <input
+              type="number"
+              id="locationY"
+              class="input"
+              placeholder="Y"
+              value="0"
+            >
+            <input
+              type="number"
+              id="locationZ"
+              class="input"
+              placeholder="Z"
+              value="0"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="robotCapabilities">Capabilities (comma-separated)</label>
+          <input
+            type="text"
+            id="robotCapabilities"
+            class="input"
+            placeholder="e.g., welding, assembly, quality-check"
+          >
+          <small class="form-hint">Enter capabilities separated by commas</small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span class="icon">💾</span> Save Robot
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Robot Details -->
+  <div id="detailsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Robot Details</h2>
+        <button class="close-btn" id="closeDetailsBtn">&times;</button>
+      </div>
+      <div id="robotDetails" class="robot-details"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="closeDetailsBtn2">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2024 Globomantics Robotics | Fleet Management System v1.0.0</p>
+      <p class="footer-note">Demo application for Pluralsight course: "Getting Started with CircleCI"</p>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
