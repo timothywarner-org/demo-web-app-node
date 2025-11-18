@@ -4,7 +4,7 @@ A comprehensive RESTful API for managing Globomantics' robotic fleet operations.
 
 ## Overview
 
-The Globomantics Robotics API is designed for educational purposes as part of a Pluralsight course on modern API development, testing, and CI/CD practices. It demonstrates best practices in:
+The Globomantics Robotics API is designed for educational purposes as part of a Pluralsight course **"Getting Started with CircleCI"**. It demonstrates best practices in:
 
 - RESTful API design
 - Request validation with Joi
@@ -13,10 +13,28 @@ The Globomantics Robotics API is designed for educational purposes as part of a 
 - CI/CD with CircleCI and GitHub Actions
 - Security best practices with Helmet
 - Comprehensive API documentation
+- Modern front-end development with vanilla JavaScript
 
 ## Features
 
-- **CRUD Operations**: Create, Read, Update, and Delete robots
+### Web Dashboard
+
+A beautiful, modern web dashboard is included for easy fleet management:
+
+- **Visual Robot Cards**: Colorful cards displaying robot status, battery level, and capabilities
+- **Real-time Statistics**: Live dashboard showing fleet health metrics
+- **Full CRUD Interface**: Add, edit, view details, and delete robots through an intuitive UI
+- **Smart Filtering**: Search by name, filter by status and type
+- **Grid/List Views**: Toggle between card grid and list view
+- **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
+- **Toast Notifications**: User-friendly success/error notifications
+- **No Framework Dependencies**: Built with vanilla HTML, CSS, and JavaScript
+
+**Access the dashboard**: Open `http://localhost:3000` in your browser after starting the server.
+
+### API Features
+
+- **CRUD Operations**: Create, Read, Update, and Delete robots via REST API
 - **Advanced Filtering**: Filter robots by status, type, and battery level
 - **Pagination**: Efficient data retrieval with customizable limits and offsets
 - **Fleet Statistics**: Real-time statistics on robot fleet health and status
@@ -33,6 +51,7 @@ The Globomantics Robotics API is designed for educational purposes as part of a 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Running the Application](#running-the-application)
+- [Web Dashboard](#web-dashboard)
 - [API Endpoints](#api-endpoints)
 - [Testing](#testing)
 - [CI/CD](#cicd)
@@ -114,7 +133,122 @@ Start the server in production mode:
 npm start
 ```
 
-The API will be available at `http://localhost:3000`.
+### Accessing the Application
+
+Once the server is running:
+
+- **Web Dashboard**: `http://localhost:3000` - Interactive fleet management interface
+- **API Endpoints**: `http://localhost:3000/api/v1/robots` - REST API
+- **API Info**: `http://localhost:3000/api` - API documentation links
+- **Health Check**: `http://localhost:3000/health` - Service health status
+
+The dashboard provides a user-friendly interface for all CRUD operations, perfect for demonstrating the API in action!
+
+## Web Dashboard
+
+The Globomantics Robotics Dashboard is a modern, responsive web interface built with vanilla JavaScript for managing your robot fleet.
+
+### Dashboard Features
+
+#### 1. Fleet Statistics Overview
+At the top of the dashboard, you'll find real-time statistics cards displaying:
+- **Total Robots**: Total number of robots in your fleet
+- **Active Robots**: Currently operational robots
+- **Average Battery Level**: Fleet-wide battery health
+- **Maintenance Needed**: Robots requiring service
+
+#### 2. Smart Filtering
+Quickly find robots using multiple filter options:
+- **Search by Name**: Real-time text search
+- **Filter by Status**: active, inactive, charging, maintenance, offline
+- **Filter by Type**: industrial, logistics, inspection, research, medical, agricultural
+- **Reset Filters**: One-click filter reset
+
+#### 3. Robot Management
+
+**Add New Robot**
+- Click the "Add Robot" button
+- Fill in robot details (name, type, status, battery, location, capabilities)
+- Real-time battery indicator shows current level
+- Form validation ensures data integrity
+
+**Edit Existing Robot**
+- Click "Edit" on any robot card
+- Modify any robot properties
+- Changes are saved instantly to the API
+
+**View Robot Details**
+- Click "Details" to see complete robot information
+- Includes manufacturing date, maintenance history, and all specifications
+- Visual indicators for maintenance and battery status
+
+**Delete Robot**
+- Click "Delete" with confirmation dialog
+- Permanent removal from the fleet
+
+#### 4. View Options
+Toggle between two view modes:
+- **Grid View**: Colorful cards with visual emphasis (default)
+- **List View**: Compact table-style layout
+
+#### 5. Visual Indicators
+
+**Status Colors**:
+- 🟢 Active (Green)
+- ⚫ Inactive (Gray)
+- 🟡 Charging (Orange)
+- 🔴 Maintenance (Red)
+- ⚪ Offline (Dark Gray)
+
+**Battery Levels**:
+- Green: 50-100%
+- Orange: 20-49%
+- Red: 0-19% (Low battery warning)
+
+**Maintenance Alerts**:
+- Robots needing maintenance are clearly marked
+- Based on 30-day maintenance cycle
+
+### Using the Dashboard
+
+1. **Start the server**:
+   ```bash
+   npm start
+   ```
+
+2. **Open your browser**:
+   ```
+   http://localhost:3000
+   ```
+
+3. **Explore the interface**:
+   - View the 5 pre-loaded sample robots
+   - Try filtering by status or type
+   - Add a new robot using the form
+   - Edit robot properties
+   - View detailed information
+   - Delete a robot (don't worry, you can reset!)
+
+4. **Perfect for demonstrations**:
+   - Great for showing CI/CD pipeline results
+   - Visual feedback for API operations
+   - Easy to understand for non-technical audiences
+   - Professional appearance for course content
+
+### Technology Stack
+
+The dashboard is intentionally built with **vanilla JavaScript** (no frameworks) to:
+- Keep the codebase simple and educational
+- Minimize dependencies and build complexity
+- Make it easy to understand for learners
+- Focus on core web development concepts
+
+**Technologies used**:
+- HTML5 for structure
+- CSS3 with modern features (Grid, Flexbox, CSS Variables)
+- Vanilla JavaScript (ES6+)
+- Fetch API for HTTP requests
+- No build tools required
 
 ## API Endpoints
 
@@ -528,6 +662,12 @@ globomantics-robotics-api/
 │       ├── release.yml
 │       ├── code-quality.yml
 │       └── README.md
+├── public/                   # Front-end dashboard
+│   ├── css/
+│   │   └── styles.css       # Dashboard styling
+│   ├── js/
+│   │   └── app.js           # Dashboard JavaScript
+│   └── index.html           # Main dashboard page
 ├── src/                      # Source code
 │   ├── config/              # Configuration files
 │   │   └── config.js
@@ -555,8 +695,11 @@ globomantics-robotics-api/
 │   └── API.md
 ├── coverage/                 # Test coverage reports (generated)
 ├── test-results/            # JUnit test results (generated)
+├── .dockerignore            # Docker ignore rules
 ├── .env.example             # Example environment variables
+├── .eslintrc.js             # ESLint configuration
 ├── .gitignore               # Git ignore rules
+├── Dockerfile               # Docker container definition
 ├── package.json             # Project dependencies
 ├── README.md                # This file
 └── LICENSE                  # MIT License

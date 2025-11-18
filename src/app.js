@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -14,8 +15,17 @@ const notFoundHandler = require('./middleware/notFoundHandler');
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - configured to allow static assets
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:']
+    }
+  }
+}));
 
 // CORS configuration
 app.use(cors({
@@ -32,6 +42,9 @@ if (config.env !== 'test') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -45,18 +58,23 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/v1/robots', robotRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
+// API info endpoint
+app.get('/api', (req, res) => {
   res.json({
     message: 'Welcome to Globomantics Robotics API',
     version: '1.0.0',
     endpoints: {
+      dashboard: '/',
       health: '/health',
       robots: '/api/v1/robots',
       documentation: '/docs'
     }
   });
 });
+
+// Root endpoint - serves the dashboard
+// Note: This is handled by express.static middleware
+// If index.html is not found, it will fall through to notFoundHandler
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);
